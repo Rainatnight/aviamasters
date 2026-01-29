@@ -114,8 +114,7 @@ const checkCollision = () => {
   let boostTriggered = false;
 
   const newBonuses = bonusesRef.current.filter(b => {
-    const planeW = 120;
-    const planeH = 120;
+ 
 
     const planeRect = {
       x: airplanePosRef.current.x + 90,     // ← твои текущие значения из отладки
@@ -162,7 +161,7 @@ const checkCollision = () => {
   }
   if (boostTriggered) {
     console.log("BOOST triggered");
-    setBoost(5);
+    setBoost(1);
   }
 
   checkCollisionRef.current = requestAnimationFrame(checkCollision);
