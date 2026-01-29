@@ -1,0 +1,64 @@
+name: Build & Push Frontend Image
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push-frontend:
+    name: Build & Push Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔡 Lowercase repository owner
+        shell: bash
+        run: echo "OWNER_LC=${OWNER,,}" >> "${GITHUB_ENV}"
+        env:
+          OWNER: '${{ github.repository_owner }}'
+
+      - name: 🧭 Select backend URL by branch
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "FRONTEND_TAG=stable" >> "${GITHUB_ENV}"
+            echo "VITE_API_URL=https://grimchance.club/api" >> "${GITHUB_ENV}"
+            echo "VITE_DEV=false" >> "${GITHUB_ENV}"
+          else
+            echo "FRONTEND_TAG=test" >> "${GITHUB_ENV}"
+            echo "VITE_API_URL=https://test.grimchance.club/api" >> "${GITHUB_ENV}"
+            echo "VITE_DEV=true" >> "${GITHUB_ENV}"
+          fi
+
+          echo "VITE_TON_ADDRESS=UQD6JK-K0btibJRmJEVnk0qAe54GgmSQBMkqvrVxlZTo0S7X" >> "${GITHUB_ENV}"
+
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔑 Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🏗️ Build and push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ghcr.io/${{ env.OWNER_LC }}/chance-frontend:${{ env.FRONTEND_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VITE_API_URL=${{ env.VITE_API_URL }}
+            VITE_DEV=${{ env.VITE_DEV }}
+            VITE_TON_ADDRESS=${{ env.VITE_TON_ADDRESS }}

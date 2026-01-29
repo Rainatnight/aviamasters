@@ -1,0 +1,9 @@
+.airplane {
+  position: absolute;
+  bottom: 140px; 
+  left: 3%;
+  transform: translateX(-50%);
+  width: 120px;
+  z-index: 5;
+  pointer-events: none;
+}

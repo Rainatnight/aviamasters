@@ -1,0 +1,15 @@
+.header {
+	width: 100%;
+
+	position: absolute;
+	top: 20px;
+	left: 0;
+	z-index: 10;
+}
+
+.container {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	min-height: 42px;
+}
