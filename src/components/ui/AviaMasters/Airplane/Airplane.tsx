@@ -1,89 +1,106 @@
-import React, { useEffect, useRef } from 'react'
-import { motion, useAnimation } from 'framer-motion'
-import airplaneImg from '../src/plane.png'
-import cls from  './Airplane.module.scss'
+import React, { useEffect, useRef } from 'react';
+import { motion, useAnimation } from 'framer-motion';
+import airplaneImg from '../src/plane.png';
+import cls from './Airplane.module.scss';
 
 interface AirplaneProps {
-  startFlying: boolean
-   onSpeedChange?: (vx: number) => void
-    onFallIntoSea?: () => void
-     onPositionChange?: (pos: { x: number, y: number }) => void
-     boost:number
+  startFlying: boolean;
+  onSpeedChange?: (vx: number) => void;
+  onFallIntoSea?: () => void;
+  onPositionChange?: (pos: { x: number; y: number }) => void;
+  boost: number;
 }
 const SEA_HEIGHT = 200;
 
-const Airplane: React.FC<AirplaneProps> = ({ startFlying ,onSpeedChange,onFallIntoSea,onPositionChange,boost}) => {
-  const controls = useAnimation()
-  const requestRef = useRef<number>(null)
-  const startTime = useRef<number | null>(null)
+const Airplane: React.FC<AirplaneProps> = ({
+  startFlying,
+  onSpeedChange,
+  onFallIntoSea,
+  onPositionChange,
+  boost, // ← приходит снаружи, например: 0 → 1 → 2 → ...
+}) => {
+  const controls = useAnimation();
+  const rafRef = useRef<number | null>(null);
+  const startTime = useRef<number | null>(null);
 
-const posRef = useRef({ x: 30, y: 0 })  // начальная позиция
-const velRef = useRef({ x: 12, y: -8 })
+  // состояние физики — сохраняется между рендерами и между бустами
+  const state = useRef({
+    x: 30,
+    y: 0,
+    vx: 12,
+    vy: -8,
+    boostUsedUpTo: 0, // запоминаем, до какого уровня буста уже применили
+  });
 
-useEffect(() => {
-  if (!startFlying) return;
-
-  const X0 = 0;
-  const Y0 = 0;
-  let Vy0 = -8;
-  let Vx0 = 12;
-  const ax = -0.01;
-  const g = 0.05;
-
-  let boostApplied = false; // чтобы применить boost только один раз
-
-  const animate = (time: number) => {
-    if (!startTime.current) startTime.current = time;
-    const t = (time - startTime.current) / 16.66;
-
-    // 🔹 применяем boost один раз
-   if (boost && !boostApplied) {
-  velRef.current.y -= 4 // небольшой подброс
-  velRef.current.x += 2 // чуть ускоряем
-  boostApplied = true
-}
-
-
-    const x = X0 + Vx0 * t + 0.5 * ax * t * t;
-    const y = Y0 + Vy0 * t + 0.5 * g * t * t;
-console.log(x,y)
-    const xClamped = Math.min(x, window.innerWidth * 0.5);
-    const yClamped = Math.min(y, window.innerHeight - 50);
-
-    if (y >= window.innerHeight - SEA_HEIGHT) {
-      if (onFallIntoSea) {
-        onFallIntoSea();
-        controls.set({ x: 0, y: 0, rotate: 0 });
-      }
+  useEffect(() => {
+    if (!startFlying) {
+      // можно здесь остановить/сбросить, если нужно
       return;
     }
 
-    // ротация носа вверх при небольшом boost
-    const rotate = boostApplied ? Math.min((Vy0 + g * t) * 3, 25) : Math.min((Vy0 + g * t) * 2, 25);
+    const GRAVITY = 0.05;
+    const DRAG_X = -0.01;
 
-    controls.set({ x: xClamped, y: yClamped, rotate });
+    let prevTime = performance.now();
 
-    if (onSpeedChange) onSpeedChange(Math.max(Vx0 + ax * t, 2));
-    if (onPositionChange) onPositionChange({ x: xClamped, y: yClamped });
+    const animate = (time: number) => {
+      if (!startTime.current) startTime.current = time;
+      const dt = (time - prevTime) / 1000; // в секундах
+      prevTime = time;
 
-    requestRef.current = requestAnimationFrame(animate);
-  };
+      if (boost > state.current.boostUsedUpTo) {
+        const levels = boost - state.current.boostUsedUpTo;
 
-  requestRef.current = requestAnimationFrame(animate);
-  return () => {
-    if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    startTime.current = null;
-  };
-}, [startFlying, onSpeedChange, boost]);
+        state.current.vy -= 1.01 * levels; // ← основной подброс (было 1.01)
+        state.current.vx += 0.1 * levels; // ← чуть больше ускорения вперёд
 
-  return (
-    <motion.img
-      src={airplaneImg}
-      alt="Airplane"
-      className={cls.airplane}
-      animate={controls}
-    />
-  )
-}
+        // опционально: моментальный небольшой скачок по y (визуальный импульс)
+        state.current.y -= 20 * levels; // мгновенно поднимаем на 8–16 пикселей
 
-export default Airplane
+        state.current.boostUsedUpTo = boost;
+      }
+
+      // физика
+      state.current.vy += GRAVITY * dt * 60; // ≈ 0.05 в 60 fps
+      state.current.vx += DRAG_X * dt * 60;
+
+      state.current.x += state.current.vx * dt * 60;
+      state.current.y += state.current.vy * dt * 60;
+
+      // ограничения
+      const xClamped = Math.min(state.current.x, window.innerWidth * 0.5);
+      const yClamped = Math.min(state.current.y, window.innerHeight - 50);
+
+      if (yClamped >= window.innerHeight - SEA_HEIGHT) {
+        onFallIntoSea?.();
+        controls.set({ x: 0, y: 0, rotate: 0 });
+        return; // останавливаем анимацию
+      }
+
+      // угол наклона
+      const rot = Math.min(state.current.vy * 3, 35);
+
+      controls.set({
+        x: xClamped,
+        y: yClamped,
+        rotate: rot,
+      });
+
+      onSpeedChange?.(Math.max(state.current.vx, 2));
+      onPositionChange?.({ x: xClamped, y: yClamped });
+
+      rafRef.current = requestAnimationFrame(animate);
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [startFlying, onSpeedChange, onFallIntoSea, onPositionChange, boost]);
+  // ↑ boost оставляем в зависимостях — теперь это безопасно
+
+  return <motion.img src={airplaneImg} alt='Airplane' className={cls.airplane} animate={controls} />;
+};
+
+export default Airplane;

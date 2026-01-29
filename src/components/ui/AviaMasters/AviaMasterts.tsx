@@ -22,7 +22,7 @@ export interface BonusType {
   y: number;
 }
 
-const INITIAL_BONUSES_COUNT = 5;
+const INITIAL_BONUSES_COUNT = 7;
 
 const AviaMasters: React.FC = () => {
   const [started, setStarted] = useState(false);
@@ -32,12 +32,12 @@ const AviaMasters: React.FC = () => {
   const [boost, setBoost] = useState(0);
   const [airplanePos, setAirplanePos] = useState<{ x: number; y: number }>({ x: 30, y: 0 });
   const [score, setScore] = useState(0);
-const airplanePosRef = useRef<{x:number,y:number}>({x:0,y:0});
-const bonusesRef = useRef<BonusType[]>([]);
+  const airplanePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const bonusesRef = useRef<BonusType[]>([]);
 
-useEffect(() => {
-  bonusesRef.current = bonuses;
-}, [bonuses]);
+  useEffect(() => {
+    bonusesRef.current = bonuses;
+  }, [bonuses]);
 
   const handleStart = () => setStarted(true);
 
@@ -69,8 +69,8 @@ useEffect(() => {
   }, [started]);
 
   useEffect(() => {
-  airplanePosRef.current = airplanePos;
-}, [airplanePos]);
+    airplanePosRef.current = airplanePos;
+  }, [airplanePos]);
 
   // Добавляем новые корабли после старта
   useEffect(() => {
@@ -78,7 +78,7 @@ useEffect(() => {
 
     let shipId = 1;
     const interval = setInterval(() => {
-      setShips(prev => [...prev, { id: shipId }]);
+      setShips((prev) => [...prev, { id: shipId }]);
       shipId++;
     }, SHIP_SPEED / 2);
 
@@ -91,89 +91,77 @@ useEffect(() => {
 
     const BONUS_SPEED = 2;
     const interval = setInterval(() => {
-      
-      setBonuses(prev =>
-        prev
-          .map(b => ({ ...b, x: b.x - BONUS_SPEED }))
-          .filter(b => b.x > -50)
-      );
+      setBonuses((prev) => prev.map((b) => ({ ...b, x: b.x - BONUS_SPEED })).filter((b) => b.x > -50));
     }, 16);
 
     return () => clearInterval(interval);
   }, [started]);
 
-const checkCollisionRef = useRef<number | null>(null);
+  const checkCollisionRef = useRef<number | null>(null);
 
-useEffect(() => {
-  if (!started) return;
+  useEffect(() => {
+    if (!started) return;
 
-const checkCollision = () => {
- 
+    const checkCollision = () => {
+      let pointsToAdd = 0;
+      let boostTriggered = false;
 
-  let pointsToAdd = 0;
-  let boostTriggered = false;
+      const newBonuses = bonusesRef.current.filter((b) => {
+        const planeRect = {
+          x: airplanePosRef.current.x + 90, // ← твои текущие значения из отладки
+          y: airplanePosRef.current.y + 680,
+          width: 120,
+          height: 120,
+        };
 
-  const newBonuses = bonusesRef.current.filter(b => {
- 
+        const bonusRect = {
+          x: b.x,
+          y: b.y - 49,
+          width: 90,
+          height: 92,
+        };
 
-    const planeRect = {
-      x: airplanePosRef.current.x + 90,     // ← твои текущие значения из отладки
-      y: airplanePosRef.current.y + 680,
-      width: 120,
-      height: 120,
-    };
+        const isColliding =
+          planeRect.x < bonusRect.x + bonusRect.width &&
+          planeRect.x + planeRect.width > bonusRect.x &&
+          planeRect.y < bonusRect.y + bonusRect.height &&
+          planeRect.y + planeRect.height > bonusRect.y;
 
-    const bonusRect = {
-      x: b.x,
-      y: b.y - 49,
-      width: 90,
-      height: 92,
-    };
+        // ←←← самый важный лог
+        if (isColliding) {
+          console.log('COLLISION DETECTED!', {
+            bonusId: b.id,
+            bonusX: b.x,
+            bonusY: b.y,
+            planeX: airplanePosRef.current.x,
+            planeY: airplanePosRef.current.y,
+          });
+          pointsToAdd += b.value;
+          boostTriggered = true;
+          return false;
+        }
 
-    const isColliding =
-      planeRect.x < bonusRect.x + bonusRect.width &&
-      planeRect.x + planeRect.width > bonusRect.x &&
-      planeRect.y < bonusRect.y + bonusRect.height &&
-      planeRect.y + planeRect.height > bonusRect.y;
-
-    // ←←← самый важный лог
-    if (isColliding) {
-      console.log("COLLISION DETECTED!", {
-        bonusId: b.id,
-        bonusX: b.x,
-        bonusY: b.y,
-        planeX: airplanePosRef.current.x,
-        planeY: airplanePosRef.current.y,
+        return true;
       });
-      pointsToAdd += b.value;
-      boostTriggered = true;
-      return false;
-    }
 
-    return true;
-  });
+      setBonuses(newBonuses);
 
+      if (pointsToAdd > 0) {
+        setScore((s) => s + pointsToAdd);
+      }
+      if (boostTriggered) {
+        setBoost(1);
+      }
 
-  setBonuses(newBonuses);
+      checkCollisionRef.current = requestAnimationFrame(checkCollision);
+    };
+    // стартуем проверку
+    checkCollisionRef.current = requestAnimationFrame(checkCollision);
 
-  if (pointsToAdd > 0) {
-    setScore(s => s + pointsToAdd);
-  }
-  if (boostTriggered) {
-    console.log("BOOST triggered");
-    setBoost(1);
-  }
-
-  checkCollisionRef.current = requestAnimationFrame(checkCollision);
-};
-  // стартуем проверку
-  checkCollisionRef.current = requestAnimationFrame(checkCollision);
-
-  return () => {
-    if (checkCollisionRef.current) cancelAnimationFrame(checkCollisionRef.current);
-  };
-}, [started]);
-
+    return () => {
+      if (checkCollisionRef.current) cancelAnimationFrame(checkCollisionRef.current);
+    };
+  }, [started]);
 
   // Сбрасываем boost после короткого импульса
   useEffect(() => {
@@ -184,14 +172,40 @@ const checkCollision = () => {
   }, [boost]);
 
   const handleAnimationComplete = (id: number) => {
-    setShips(prev => prev.filter(ship => ship.id !== id));
+    setShips((prev) => prev.filter((ship) => ship.id !== id));
   };
+
+  // useEffect(() => {
+  //   if (!started) return;
+
+  //   const interval = setInterval(() => {
+  //     const howMany = Math.floor(Math.random() * 5) + 3; // 1–3 штуки за раз
+
+  //     const newBonuses: BonusType[] = [];
+  //     for (let i = 0; i < howMany; i++) {
+  //       const minX = 0.8 * SCREEN_WIDTH; // появляются справа
+  //       const maxX = 1.2 * SCREEN_WIDTH; // чуть за экраном
+  //       const minY = 150;
+  //       const maxY = SCREEN_HEIGHT - 250;
+
+  //       newBonuses.push({
+  //         id: Date.now() + Math.random(), // уникальный id
+  //         value: Math.floor(Math.random() * 3) + 1,
+  //         x: Math.random() * (maxX - minX) + minX,
+  //         y: Math.random() * (maxY - minY) + minY,
+  //       });
+  //     }
+
+  //     setBonuses((prev) => [...prev, ...newBonuses]);
+  //   }, 3000); // каждые 4.5 секунды — подбери под себя (3000–7000 мс)
+
+  //   return () => clearInterval(interval);
+  // }, [started]);
 
   return (
     <div className={styles.gameArea} style={{ position: 'relative', overflow: 'hidden' }}>
-    
-    
       <Airplane
+        key={started ? 'flying' : 'ready'}
         startFlying={started}
         onSpeedChange={setPlaneSpeed}
         onFallIntoSea={handleFallIntoSea}
@@ -200,17 +214,11 @@ const checkCollision = () => {
       />
       <div className={styles.sea} />
 
-      {ships.map(ship => (
-        <Ship
-          key={ship.id}
-          handleAnimationComplete={handleAnimationComplete}
-          id={ship.id}
-          planeSpeed={planeSpeed}
-          started={started}
-        />
+      {ships.map((ship) => (
+        <Ship key={ship.id} handleAnimationComplete={handleAnimationComplete} id={ship.id} planeSpeed={planeSpeed} started={started} />
       ))}
 
-      {bonuses.map(bonus => (
+      {bonuses.map((bonus) => (
         <Bonus key={bonus.id} bonus={bonus} />
       ))}
 
