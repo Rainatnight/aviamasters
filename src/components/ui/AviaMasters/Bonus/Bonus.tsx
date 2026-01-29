@@ -1,30 +1,26 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import styles from './Bonus.module.scss';
-import bonusImg from '../src/bonus.png'; // твоя картинка бонуса
+import bonusImg from '../src/bonus.png';
 
 export interface BonusType {
   id: number;
-  value: number; // 1, 2 или 3
-  x: number;     // случайная позиция по X
-  y: number;     // случайная позиция по Y
+  value: number;
+  x: number;
+  y: number;
 }
 
 interface BonusProps {
   bonus: BonusType;
-  collected?: boolean;
 }
 
 const Bonus: React.FC<BonusProps> = ({ bonus }) => {
   return (
     <motion.div
       className={styles.bonus}
-      style={{
-        left: bonus.x,
-        top: bonus.y,
-      }}
+      style={{ left: bonus.x, top: bonus.y }}
       initial={{ opacity: 0 }}
-      animate={{ opacity: 1, y: -50 }} // поднимается вверх
+      animate={{ opacity: 1, y: -50 }}
       transition={{ duration: 3 }}
     >
       <div className={styles.bonusImageWrapper}>
