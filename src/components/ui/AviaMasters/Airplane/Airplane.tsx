@@ -38,7 +38,9 @@ useEffect(() => {
     const yClamped = Math.min(y, window.innerHeight - 50)
 
    if (y >= window.innerHeight - SEA_HEIGHT) {
-  if (onFallIntoSea) onFallIntoSea()
+   if (onFallIntoSea){ onFallIntoSea()
+      controls.set({ x: 0, y: 0, rotate: 0 })
+   }
     
 
   return // останавливаем анимацию
@@ -48,7 +50,7 @@ useEffect(() => {
 
     // 🔹 Передаём текущую горизонтальную скорость наружу
     if (onSpeedChange) onSpeedChange(Math.max(Vx0 + ax * t, 2) )
-if (onPositionChange) onPositionChange({ x: xClamped, y: yClamped })
+    if (onPositionChange) onPositionChange({ x: xClamped, y: yClamped })
 
     if (y < window.innerHeight) {
       requestRef.current = requestAnimationFrame(animate)

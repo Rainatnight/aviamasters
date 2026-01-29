@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { motion } from 'motion/react';
 import styles from './Bonus.module.scss';
+import bonusImg from '../src/bonus.png'; // твоя картинка бонуса
 
 export interface BonusType {
   id: number;
@@ -11,7 +12,6 @@ export interface BonusType {
 
 interface BonusProps {
   bonus: BonusType;
-  onAnimationComplete: (id: number) => void;
 }
 
 const Bonus: React.FC<BonusProps> = ({ bonus }) => {
@@ -23,11 +23,13 @@ const Bonus: React.FC<BonusProps> = ({ bonus }) => {
         top: bonus.y,
       }}
       initial={{ opacity: 0 }}
-      animate={{ opacity: 1, y: -50 }} // например поднимается вверх
+      animate={{ opacity: 1, y: -50 }} // поднимается вверх
       transition={{ duration: 3 }}
-    //   onAnimationComplete={() => onAnimationComplete(bonus.id)}
     >
-      +{bonus.value}
+      <div className={styles.bonusImageWrapper}>
+        <img src={bonusImg} alt="bonus" className={styles.bonusImage} />
+        <span className={styles.bonusValue}>+{bonus.value}</span>
+      </div>
     </motion.div>
   );
 };
