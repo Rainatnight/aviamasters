@@ -12,6 +12,7 @@ export interface BonusType {
 
 interface BonusProps {
   bonus: BonusType;
+  collected?: boolean;
 }
 
 const Bonus: React.FC<BonusProps> = ({ bonus }) => {

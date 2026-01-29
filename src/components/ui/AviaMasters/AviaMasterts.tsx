@@ -20,6 +20,7 @@ interface BonusType {
   value: number;
   x: number;
   y: number;
+   collected?: boolean;
 }
 
 const INITIAL_BONUSES_COUNT = 5; // сколько бонусов будет на старте
@@ -29,6 +30,9 @@ const AviaMasters: React.FC = () => {
   const [ships, setShips] = useState<ShipType[]>([{ id: 0, isDefault: true }]);
   const [planeSpeed, setPlaneSpeed] = useState(0);
   const [bonuses, setBonuses] = useState<BonusType[]>([]);
+const [boost,setBoost ]= useState(0)
+const [airplanePos, setAirplanePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+const [score,setScore] = useState(0)
 
   const handleStart = () => setStarted(true);
 
@@ -37,6 +41,7 @@ const AviaMasters: React.FC = () => {
     setShips([{ id: 0, isDefault: true }]);
     setBonuses([])
     setPlaneSpeed(0)
+    setScore(0)
   };
 
   // Генерируем бонусы при загрузке игры
@@ -126,7 +131,40 @@ const AviaMasters: React.FC = () => {
   return () => clearInterval(interval);
 }, [started]);
 
+useEffect(() => {
+  if (!started) return;
 
+  const interval = setInterval(() => {
+    setBonuses(prev => prev.filter(b => {
+      const planeRect = { x: airplanePos.x, y: airplanePos.y, width: 60, height: 60 };
+      const bonusRect = { x: b.x, y: b.y, width: 50, height: 50 };
+
+      const isColliding =
+        planeRect.x < bonusRect.x + bonusRect.width &&
+        planeRect.x + planeRect.width > bonusRect.x &&
+        planeRect.y < bonusRect.y + bonusRect.height &&
+        planeRect.y + planeRect.height > bonusRect.y;
+
+      if (isColliding) {
+        setBoost(5);
+        setScore(prev => prev + b.value);
+        return false; // бонус удаляем сразу
+      }
+
+      return true;
+    }));
+  }, 16);
+
+  return () => clearInterval(interval);
+}, [started, airplanePos]);
+
+
+useEffect(() => {
+  if (boost) {
+    const timer = setTimeout(() => setBoost(0), 50); // короткий импульс
+    return () => clearTimeout(timer);
+  }
+}, [boost]);
 
   const handleAnimationComplete = (id: number) => {
     setShips((prev) => prev.filter((ship) => ship.id !== id));
@@ -134,7 +172,7 @@ const AviaMasters: React.FC = () => {
 
   return (
     <div className={styles.gameArea} style={{ position: 'relative', overflow: 'hidden' }}>
-      <Airplane startFlying={started} onSpeedChange={setPlaneSpeed} onFallIntoSea={handleFallIntoSea} />
+      <Airplane startFlying={started} onSpeedChange={setPlaneSpeed} onFallIntoSea={handleFallIntoSea}  onPositionChange={setAirplanePos} boost={boost}/>
       <div className={styles.sea} />
 
       {ships.map((ship) => (
@@ -160,6 +198,10 @@ const AviaMasters: React.FC = () => {
           Start Game
         </button>
       )}
+
+      {
+        <p className={styles.score}>{`Score: ${score}`}</p>
+      }
     </div>
   );
 };
